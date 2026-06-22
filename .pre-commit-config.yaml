@@ -1,3 +1,4 @@
+---
 # ACS730 Lab Template — Pre-commit Configuration
 # Students: run `pre-commit install` once after cloning to activate hooks.
 # Hooks run automatically before every commit. Fix errors, then re-commit.
