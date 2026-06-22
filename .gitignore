@@ -1,0 +1,32 @@
+# OpenTofu / Terraform
+.terraform/
+.tofu/
+*.tfplan
+*.tfstate
+*.tfstate.backup
+.terraform.lock.hcl
+override.tf
+override.tf.json
+crash.log
+
+# Terragrunt
+.terragrunt-cache/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+*.egg-info/
+
+# Ansible
+*.retry
+ansible/vault_password
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp

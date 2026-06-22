@@ -1,0 +1,80 @@
+# ACS730 Lab Template — Pre-commit Configuration
+# Students: run `pre-commit install` once after cloning to activate hooks.
+# Hooks run automatically before every commit. Fix errors, then re-commit.
+#
+# Install pre-commit:   pip install pre-commit
+# Run manually:         pre-commit run --all-files
+# Skip once (emergency): git commit --no-verify (requires instructor approval)
+
+repos:
+
+  # ── General code hygiene ──────────────────────────────────────────────────
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: trailing-whitespace        # remove trailing spaces
+      - id: end-of-file-fixer          # ensure files end with newline
+      - id: check-yaml                 # validate YAML syntax
+      - id: check-json                 # validate JSON syntax
+      - id: check-toml                 # validate TOML syntax
+      - id: check-merge-conflict       # block commits with unresolved merge markers
+      - id: detect-private-key         # block accidental private key commits
+      - id: check-added-large-files    # warn on files > 500 KB
+        args: ['--maxkb=500']
+      - id: mixed-line-ending          # normalize line endings
+        args: ['--fix=lf']
+
+  # ── Secret detection ──────────────────────────────────────────────────────
+  # Catches AWS keys, passwords, tokens before they reach the remote
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.18.2
+    hooks:
+      - id: gitleaks
+
+  # ── Shell script quality ──────────────────────────────────────────────────
+  # Lints .sh scripts for common bugs and pitfalls
+  - repo: https://github.com/shellcheck-py/shellcheck-py
+    rev: v0.9.0.6
+    hooks:
+      - id: shellcheck
+        args: ['--severity=warning']
+
+  # ── YAML linting ──────────────────────────────────────────────────────────
+  - repo: https://github.com/adrienverge/yamllint
+    rev: v1.35.1
+    hooks:
+      - id: yamllint
+        args: ['-c', '.yamllint.yml']
+        exclude: '^(\.gitlab-ci\.yml)$'  # CI files often violate line length
+
+  # ── OpenTofu / Terraform ──────────────────────────────────────────────────
+  # Introduced in Week 4. Requires OpenTofu installed locally.
+  - repo: https://github.com/antonbabenko/pre-commit-terraform
+    rev: v1.92.0
+    hooks:
+      - id: terraform_fmt              # auto-formats HCL (Week 4+)
+        args:
+          - --args=-recursive
+      - id: terraform_validate         # validates HCL syntax (Week 4+)
+        args:
+          - --args=-no-color
+      - id: terraform_docs             # keeps README in sync with variables (Week 5+)
+        args:
+          - --hook-config=--path-to-file=README.md
+          - --hook-config=--add-to-existing-file=true
+          - --hook-config=--create-file-if-not-exist=true
+      - id: terraform_checkov          # IaC security scan (Week 12+)
+        args:
+          - --args=--compact
+          - --args=--quiet
+
+  # ── Ansible linting ──────────────────────────────────────────────────────
+  # Introduced in Week 8. Requires ansible-lint installed.
+  - repo: https://github.com/ansible/ansible-lint
+    rev: v25.1.3
+    hooks:
+      - id: ansible-lint
+        files: \.(yml|yaml)$
+        exclude: '^(\.gitlab-ci\.yml|renovate\.json|\.pre-commit-config\.yaml)$'
+        additional_dependencies:
+          - ansible-core>=2.15,<2.18

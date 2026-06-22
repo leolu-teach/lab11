@@ -1,0 +1,93 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "description": "ACS730 Lab Template — Renovate Bot Configuration (Week 10)",
+  "extends": [
+    "config:base",
+    ":dependencyDashboard",
+    ":semanticCommits",
+    ":separatePatchReleases"
+  ],
+
+  "labels": ["renovate", "dependencies"],
+  "assignees": [],
+  "reviewers": [],
+
+  "schedule": ["every weekend"],
+  "timezone": "America/Toronto",
+
+  "prCreation": "not-pending",
+  "prConcurrentLimit": 5,
+  "branchConcurrentLimit": 10,
+
+  "commitMessagePrefix": "chore(deps):",
+  "commitMessageAction": "update",
+
+  "packageRules": [
+    {
+      "description": "OpenTofu / Terraform providers — group all AWS provider updates",
+      "matchManagers": ["terraform"],
+      "matchPackageNames": ["hashicorp/aws", "opentofu/aws"],
+      "groupName": "aws-provider",
+      "automerge": false,
+      "labels": ["renovate", "terraform", "aws-provider"]
+    },
+    {
+      "description": "OpenTofu modules from registry — auto-merge patch bumps",
+      "matchManagers": ["terraform"],
+      "matchPackagePatterns": ["^registry.terraform.io/", "^registry.opentofu.org/"],
+      "matchUpdateTypes": ["patch"],
+      "automerge": true,
+      "automergeType": "branch",
+      "labels": ["renovate", "terraform", "automerge"]
+    },
+    {
+      "description": "OpenTofu modules — require review for minor/major",
+      "matchManagers": ["terraform"],
+      "matchUpdateTypes": ["minor", "major"],
+      "automerge": false,
+      "labels": ["renovate", "terraform", "review-required"]
+    },
+    {
+      "description": "GitHub Actions — auto-merge patch, require review for minor/major",
+      "matchManagers": ["github-actions"],
+      "matchUpdateTypes": ["patch"],
+      "automerge": true,
+      "automergeType": "branch"
+    },
+    {
+      "description": "Pre-commit hooks — group all updates together",
+      "matchManagers": ["pre-commit"],
+      "groupName": "pre-commit hooks",
+      "automerge": true,
+      "automergeType": "branch",
+      "labels": ["renovate", "pre-commit"]
+    },
+    {
+      "description": "Python packages — auto-merge patch",
+      "matchManagers": ["pip_requirements", "pip-compile", "pipenv"],
+      "matchUpdateTypes": ["patch"],
+      "automerge": true,
+      "automergeType": "branch"
+    },
+    {
+      "description": "Docker base images — require manual review",
+      "matchManagers": ["dockerfile"],
+      "automerge": false,
+      "labels": ["renovate", "docker"]
+    }
+  ],
+
+  "terraform": {
+    "enabled": true
+  },
+
+  "pre-commit": {
+    "enabled": true
+  },
+
+  "ignorePaths": [
+    "**/node_modules/**",
+    "**/.terraform/**",
+    "**/.tofu/**"
+  ]
+}

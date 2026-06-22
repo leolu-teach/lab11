@@ -1,0 +1,176 @@
+# ACS730 GitHub Actions CI Pipeline
+#
+# This file EVOLVES week by week — uncomment sections as you learn each topic.
+# Week 3:  pre-commit stage only
+# Week 4:  + opentofu validate
+# Week 8:  + ansible-lint
+# Week 9:  + opentofu apply (self-hosted runner + manual gate via environment)
+# Week 12: + checkov security scan
+#
+# Self-hosted runner (Week 9+): EC2 instance with LabRole, tagged 'acs730'
+# Before Week 9: uses GitHub-hosted ubuntu-latest runner
+
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+
+env:
+  TF_ROOT: terraform
+  AWS_DEFAULT_REGION: us-east-1
+
+# ─────────────────────────────────────────────────────────────────────────────
+# STAGE: lint
+# Week 3 — always active
+# ─────────────────────────────────────────────────────────────────────────────
+jobs:
+  pre-commit:
+    name: pre-commit hooks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: pre-commit/action@v3.0.1
+
+# ─────────────────────────────────────────────────────────────────────────────
+# STAGE: validate
+# Week 4 — uncomment this job
+# ─────────────────────────────────────────────────────────────────────────────
+  tofu-validate:
+    name: OpenTofu fmt + validate
+    runs-on: ubuntu-latest
+    needs: pre-commit
+    steps:
+      - uses: actions/checkout@v4
+      - uses: opentofu/setup-opentofu@v1
+        with:
+          tofu_version: "1.8.x"
+      - name: tofu fmt check
+        run: tofu fmt -check -recursive -diff
+        working-directory: ${{ env.TF_ROOT }}
+      - name: tofu init (no backend)
+        run: tofu init -backend=false
+        working-directory: ${{ env.TF_ROOT }}
+      - name: tofu validate
+        run: tofu validate -no-color
+        working-directory: ${{ env.TF_ROOT }}
+
+# Week 8 — uncomment this job after completing the Ansible lab
+#  ansible-lint:
+#    name: ansible-lint
+#    runs-on: ubuntu-latest
+#    needs: pre-commit
+#    steps:
+#      - uses: actions/checkout@v4
+#      - uses: actions/setup-python@v5
+#        with:
+#          python-version: "3.12"
+#      - name: Install ansible-lint
+#        run: pip install ansible ansible-lint
+#      - name: Run ansible-lint
+#        run: ansible-lint --profile=production
+#        working-directory: ansible
+
+# ─────────────────────────────────────────────────────────────────────────────
+# STAGE: security
+# Week 12 — uncomment this job
+# ─────────────────────────────────────────────────────────────────────────────
+#  checkov-scan:
+#    name: Checkov IaC security scan
+#    runs-on: ubuntu-latest
+#    needs: tofu-validate
+#    permissions:
+#      security-events: write
+#    steps:
+#      - uses: actions/checkout@v4
+#      - uses: bridgecrewio/checkov-action@v12
+#        with:
+#          directory: ${{ env.TF_ROOT }}
+#          soft_fail: false
+#          hard_fail_on: HIGH,CRITICAL
+#          output_format: sarif
+#          output_file_path: checkov.sarif
+#      - uses: github/codeql-action/upload-sarif@v3
+#        if: always()
+#        with:
+#          sarif_file: checkov.sarif
+
+# ─────────────────────────────────────────────────────────────────────────────
+# STAGE: plan
+# Week 5 — uncomment this job (requires remote state configured in lab 5)
+# ─────────────────────────────────────────────────────────────────────────────
+#  tofu-plan:
+#    name: OpenTofu plan
+#    runs-on: [self-hosted, acs730]   # uses EC2 runner with LabRole
+#    needs: tofu-validate
+#    steps:
+#      - uses: actions/checkout@v4
+#      - uses: opentofu/setup-opentofu@v1
+#        with:
+#          tofu_version: "1.8.x"
+#      - name: tofu init
+#        run: tofu init -input=false
+#        working-directory: ${{ env.TF_ROOT }}
+#      - name: tofu plan
+#        run: tofu plan -no-color -input=false -out=plan.tfplan
+#        working-directory: ${{ env.TF_ROOT }}
+#      - uses: actions/upload-artifact@v4
+#        with:
+#          name: tfplan
+#          path: ${{ env.TF_ROOT }}/plan.tfplan
+#          retention-days: 3
+
+# ─────────────────────────────────────────────────────────────────────────────
+# STAGE: apply
+# Week 9 — uncomment (self-hosted runner + GitHub Environment for manual gate)
+# Create Environments in GitHub: Settings → Environments → dev, production
+# Set 'production' to require a reviewer approval before deploy
+# ─────────────────────────────────────────────────────────────────────────────
+#  tofu-apply-dev:
+#    name: Apply → dev
+#    runs-on: [self-hosted, acs730]
+#    needs: tofu-plan
+#    environment: dev
+#    if: github.ref == 'refs/heads/dev'
+#    steps:
+#      - uses: actions/checkout@v4
+#      - uses: opentofu/setup-opentofu@v1
+#        with:
+#          tofu_version: "1.8.x"
+#      - uses: actions/download-artifact@v4
+#        with:
+#          name: tfplan
+#          path: ${{ env.TF_ROOT }}
+#      - name: tofu init
+#        run: tofu init -input=false
+#        working-directory: ${{ env.TF_ROOT }}
+#      - name: tofu apply
+#        run: tofu apply -auto-approve -input=false plan.tfplan
+#        working-directory: ${{ env.TF_ROOT }}
+#
+#  tofu-apply-prod:
+#    name: Apply → production
+#    runs-on: [self-hosted, acs730]
+#    needs: tofu-plan
+#    environment: production   # <-- requires reviewer approval in GitHub Settings
+#    if: github.ref == 'refs/heads/main'
+#    steps:
+#      - uses: actions/checkout@v4
+#      - uses: opentofu/setup-opentofu@v1
+#        with:
+#          tofu_version: "1.8.x"
+#      - uses: actions/download-artifact@v4
+#        with:
+#          name: tfplan
+#          path: ${{ env.TF_ROOT }}
+#      - name: tofu init
+#        run: tofu init -input=false
+#        working-directory: ${{ env.TF_ROOT }}
+#      - name: tofu apply
+#        run: tofu apply -auto-approve -input=false plan.tfplan
+#        working-directory: ${{ env.TF_ROOT }}
